@@ -55,5 +55,5 @@
     <preference name="android-minSdkVersion" value="16" />
     <preference name="BackupWebStorage" value="none" />
     <preference name="SplashScreen" value="screen" />
-    <plgun name="cordova-plugin-splashscreen" source="npm"/>
+    <plugin name="cordova-plugin-splashscreen" source="npm"/>
 </widget>
