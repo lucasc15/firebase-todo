@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no, width=device-width">
+    <title></title>
+
+    <link rel="manifest" href="manifest.json">
+
+    <!-- un-comment this code to enable service worker
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('service-worker.js')
+          .then(() => console.log('service worker installed'))
+          .catch(err => console.log('Error', err));
+      }
+    </script>-->
+
+    <link href="lib/ionic/css/ionic.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+
+    <!-- IF using Sass (run gulp sass first), then uncomment below and remove the CSS includes above
+    <link href="css/ionic.app.css" rel="stylesheet">
+    -->
+
+    <!-- ionic/angularjs js -->
+    <script src="lib/ionic/js/ionic.bundle.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.14/angular.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/3.6.2/firebase.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/angularFire/2.2.0/angularfire.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/node-uuid/1.4.7/uuid.js"></script>
+
+    <!-- cordova script (this will be a 404 during development) -->
+    <script src="cordova.js"></script>
+
+    <!-- your app's js -->
+    <script src="js/app.js"></script>
+    <script src="js/controllers.js"></script>
+    <script src="js/services.js"></script>
+    
+     <style>
+     .deleted {
+       text-decoration: line-through;
+     }
+     </style>
+     
+     <script>
+     var config = {
+       apiKey: "AIzaSyDRp3T_U80uRmVzVjJHoGB6O534-7a7HDI",
+       authDomain: "dev-2230.firebaseapp.com",
+       databaseURL: "https://dev-2230.firebaseio.com",
+       storageBucket: "dev-2230.appspot.com",
+       messagingSenderId: "542333182747"
+     };
+     firebase.initializeApp(config);
+     
+     angular.module("taskApp", ['firebase']).controller('taskController', function($scope, $http, $firebaseArray, $firebaseAuth){
+       
+       var auth = $firebaseAuth();
+       $scope.loggedIn = false;
+  
+       $scope.logIn = function() {
+         auth.$signInAnonymously().then(function(firebaseUser){
+	   $scope.loggedIn = true;
+	   $scope.user = firebaseUser;
+	   console.log("hello");
+	   var ref = firebase.database().ref().child('tasks');
+	   $scope.tasks = $firebaseArray(ref);
+	   $scope.ref = ref;
+	   console.log($scope.tasks);
+         }).catch(function(error){
+	   console.log(error);
+         })
+       }
+
+       $scope.showDeleted = false;
+       $scope.showDeletedItems = function(){
+	 $scope.showDeleted = true;
+       }
+       $scope.hideDeletedItems = function(){
+	 $scope.showDeleted = false;
+       }
+       
+       $scope.createTask = function() {
+	 var description = $scope.currentTask.description.trim();
+	 var date = new Date();
+	 if (description.length > 0){
+	   $scope.tasks.$add({
+	     description: description,
+	     createdAt: date.toString(),
+	     updatedAt: null,
+	     deletedAt: null
+	   });
+	 }
+       }
+
+       $scope.updateTask = function(key) {
+	 var taskReference = $scope.tasks.$getRecord(key);
+	 var createdAt = taskReference.createdAt;
+	 var newDescription = prompt("Enter the new description: ", taskReference.description);
+	 if (newDescription && newDescription.length > 0 && taskReference){
+	   var date = new Date();
+	   taskReference = {
+	     description: newDescription,
+	     updatedAt: date.toString(),
+	     createdAt: createdAt
+	   };
+	   console.log(taskReference);
+	   $scope.ref.child(key).set(taskReference);
+	 }
+       }
+       
+       $scope.deleteTask = function(key) {
+	 var taskReference = $scope.tasks.$getRecord(key);
+	 var date = new Date();
+	 var createdAt = taskReference.createdAt;
+	 var updatedAt = taskReference.updatedAt != undefined ? taskReference.updatedAt : null;
+	 var description = taskReference.description;
+	 if (taskReference){
+	   taskReference = {
+	     deletedAt: date.toString(),
+	     createdAt: createdAt,
+	     updatedAt: updatedAt,
+	     description: description
+	   }
+	   console.log(taskReference);
+	   $scope.ref.child(key).set(taskReference);
+	 }
+       }
+
+       $scope.undeleteTask = function(key) {
+	 var taskReference = $scope.tasks.$getRecord(key);
+	 if (taskReference){
+	   var createdAt = taskReference.createdAt;
+	   var updatedAt = taskReference.updatedAt != undefined ? taskReference.updatedAt : null;
+	   var description = taskReference.description;taskReference.deletedAt = null;
+	   taskReference = {
+	     createdAt: createdAt,
+	     deleteAt: null,
+	     updatedAt: updatedAt,
+	     description: description
+	   }
+	   $scope.ref.child(key).set(taskReference);
+	 }
+       }
+       
+     });
+    </script>
+  </head>
+  <body ng-app="taskApp" ng-controller="taskController" class="platform-android platform-cordova platform-webview">
+    <div ng-hide="loggedIn">
+      <button ng-click="logIn()">Log In with Google</button>
+    </div>
+    <div ng-hide="!loggedIn">
+      <h1>Task List</h1>
+      <ul>
+        <li ng-repeat="task in tasks" ng-if="task.deletedAt == null || showDeleted">
+	  <p ng-class="(task.deletedAt != null) ? 'deleted' : ''")"> {{ task.description }} </p>
+	  <ul>
+	    <li><button ng-click="deleteTask(task.$id)">Delete/Finish Task</button></li>
+	    <li><button ng-click="updateTask(task.$id)">Update Task</button></li>
+	    <li><button ng-click="undeleteTask(task.$id)">Undelete Task</button></li>
+	    <li>Created at: {{ task.createdAt }}</li>
+	    <li>Updated at: {{ task.updatedAt }}</li>
+	    <li>Deleted at: {{ task.deletedAt }}</li>
+	  </ul>
+        </li>
+      </ul>
+      <input ng-model="currentTask.description" type="text" placeholder="Enter task name"/>
+      <button ng-click="createTask()">Create Task</button>
+      <button ng-click="showDeletedItems()" ng-hide="showDeleted">Show Deleted Items</button>
+      <button ng-click="hideDeletedItems()" ng-hide="!showDeleted">Hide Deleted Items</button>
+    </div>
+    </ion-nav-bar>
+    <!--
+      The views will be rendered in the <ion-nav-view> directive below
+      Templates are in the /templates folder (but you could also
+      have templates inline in this html file if you'd like).
+    -->
+    <ion-nav-view></ion-nav-view>
+  </body>
+</html>
